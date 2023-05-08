@@ -1,0 +1,144 @@
+<!DOCTYPE html>
+<html xmlns="http://www.w3.org/1999/xhtml">
+<head>
+    <title>Movie Battle</title>
+</head>
+<body>
+<h1>Movie Battle - Try to guess higher raking between two movies:</h1>
+<form>
+    <br>
+    <div>
+        <h2>Find Movie 1: </h2><input id="movie1" type="text" name="movie1"/>
+        <input  type="button" id="findMovie1" name="findMovie1" value="Find"/>
+        <input id='movieSelected1' type="radio" name="movieSelected" title="Select">
+        <div id="movie1Desc"></div>
+    </div>
+    <br>
+    <div>
+        <h2>Find Movie 2: </h2><input id="movie2" type="text" name="movie2"/>
+        <input type="button" id="findMovie2" name="findMovie1" value="Find"/>
+        <input id="movieSelected2" type="radio" name="movieSelected" title="Select">
+        <div id="movie2Desc"></div>
+    </div>
+    <br>
+    <input id="selectMovie" type="button" name="selectMovie" value="Play"/>
+    <br>
+    <div id="msg"></div>
+    <br>
+    <br>
+    <input type="button" id="findMovies" name="findMovies" value="Update Ranking"/>
+    <br>
+    <table id="ranking">
+    </table>
+</form>
+</body>
+<script src="https://code.jquery.com/jquery-3.6.4.min.js"></script>
+<script>
+    var movie1 = {};
+    var movie2 = {};
+    var movies = [];
+    function findMovie(movie, fieldName, fieldDescName) {
+        $.ajax({
+            url: 'http://localhost:8080/moviebattle/movie/'+$('#'+fieldName).val(),
+            type: 'GET',
+            dataType: 'json',
+            contentType: 'application/json',
+            data: '',
+            success: function(result) {
+                if (result.Title !== undefined) {
+                    var desc = 'ID: '+ result.imdbID + '<br>' + 'Title: '+result.Title+'<br>' + 'Plot: '
+                        + result.Plot + '<br>'+ 'Genre: ' + result.Genre;
+                    $('#'+fieldDescName).html(desc);
+                    if (movie == 'movie1') {
+                        movie1 = result;
+                    } else {
+                        movie2 = result;
+                    }
+                } else {
+                    $('#'+fieldDescName).html('Informe o nome de um filme.');
+                }
+            },
+            error: function(error) {
+                const err = error.Error;
+                $('#'+fieldDescName).html(desc);
+            }
+        });
+    }
+    $('#findMovie1').bind("click", function() {
+        findMovie('movie1', 'movie1', 'movie1Desc');
+    });
+    $('#findMovie2').bind("click", function() {
+        findMovie('movie2', 'movie2', 'movie2Desc');
+    });
+    $('#selectMovie').bind("click", function() {
+        if (movie1.Title === undefined || movie2.Title === undefined) {
+            $('#msg').html('Os 2 filmes precisam ser consultados.');
+        } else {
+            $('#msg').html('');
+           var movie1Checked = $('#movieSelected1').is(':checked');
+           var movie2Checked = $('#movieSelected2').is(':checked');
+           var resultMove = (movie1Checked && (movie1.imdbRating >= movie2.imdbRating))
+                        || (movie2Checked && (movie2.imdbRating >= movie1.imdbRating));
+           $.ajax({
+                url: 'http://localhost:8080/moviebattle/movie/pontuacao',
+                type: 'POST',
+                dataType: 'json',
+                contentType: 'application/json',
+                data: JSON.stringify({
+                    'movie1': movie1Checked ? movie1.imdbID : movie2.imdbID,
+                    'movie2': movie1Checked ? movie2.imdbID : movie1.imdbID
+                }),
+                success: function(result) {
+                    if (result !== undefined && result) {
+                        $('#msg').html('You win. Selected movie has higher rating.');
+                    } else {
+                        $('#msg').html('You lose. Selected movie has lower rating.');
+                    }
+                },
+                error: function(error) {
+                    const err = error.Error;
+                    $('#msg').html(err);
+                }
+            });
+        }
+    });
+    $('#findMovies').bind("click", function() {
+        $.ajax({
+                url: 'http://localhost:8080/moviebattle/movie/all',
+                type: 'GET',
+                dataType: 'json',
+                contentType: 'application/json',
+                data: '',
+                success: function(result) {
+                    movies = result;
+                    var rows = '<tr><th>Id</th><th>Movie Time</th><th>Movie Selected</th><th>Movie Not Selected</th>';
+                    rows += '<th>Result</th><th>User</th></tr>';
+                    if (result) {
+                        movies.forEach(row => {
+                            rows += '<tr>';
+                            rows += '<td>' + row.id + '</td>';
+                            rows += '<td>' + row.moveTime + '</td>';
+                            rows += '<td>' + row.movieSelected + '</td>';
+                            rows += '<td>' + row.movieNotSelected + '</td>';
+                            rows += '<td>' + row.result + '</td>';
+                            rows += '<td>' + row.user + '</td>';
+                            rows += '</tr>';
+                        });
+                    }
+                    $('#ranking').html(rows);
+                    movie1 = {};
+                    movie2 = {};
+                    $('#movie1Desc').html('');
+                    $('#movie2Desc').html('');
+                    $('#movie1').val('');
+                    $('#movie2').val('');
+                    $('#msg').html('');
+                },
+                error: function(error) {
+                    const err = error.Error;
+                    $('#msg').html(err);
+                }
+            });
+    });
+</script>
+</html>
